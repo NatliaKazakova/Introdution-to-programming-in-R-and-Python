@@ -1,0 +1,155 @@
+---
+title: "Introduction to programming in R and Python by Natalia Kazakova and Andrey Yakovenko"
+output: html_notebook
+---
+## Project 1
+```{r}
+install.packages("stringi", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
+```
+```{r}
+install.packages("stringr", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
+```
+```{r}
+install.packages("tidyverse")
+```
+```{r}
+library(tidyverse)
+```
+### 1-2-3. Find a dataset, download it and load the data into R
+
+We will study the species repartition and weight of animals caught in plots in our study area. The dataset is stored as a comma separated value (CSV) file. Each row holds information for a single animal, and the columns represent:
+
+record_id	- Unique id for the observation
+month	- month of observation
+day	- day of observation
+year	- year of observation
+plot_id	- ID of a particular plot
+species_id	- 2-letter code
+sex	- sex of animal (“M”, “F”)
+hindfoot_length	- length of the hindfoot in mm
+weight	- weight of the animal in grams
+genus	- genus of animal
+species	- species of animal
+taxa	- some taxon, e.g. Rodent, Reptile, Bird, Rabbit
+plot_type	- type of plot
+
+Before the work, we need to check and change (if necessary) our working directory:
+```{r}
+getwd()
+```
+```{r}
+setwd('/Users/19820585/Documents/hse/Introduction to programming in R and Python')
+```
+```{r}
+surveys <- read.csv("/Users/19820585/Documents/hse/Introduction to programming in R and Python/portal_data_joined.csv")
+```
+Let’s check the top of this data frame:
+```{r}
+head(surveys)
+```
+... and size:
+```{r}
+dim(surveys)
+```
+Let's inspect the structure of a data frame with the function str():
+```{r}
+str(surveys)
+```
+Moreover, it can be useful to check summary statistics for each column:
+```{r}
+summary(surveys)
+```
+### 4.	Pick the variables that you think can be relevant for your analysis. Copy these variables into a separate dataset
+We decided to drop two variables from our dataset - taxon and type of plot:
+```{r}
+surveys_new <- select(surveys, -taxa, -plot_type)
+```
+### 5.	Check that all R data types actually match the data (e.g. no numbers are stored as characters). If there are, convert the data to the relevant types
+```{r}
+str(surveys_new)
+```
+It looks fine
+
+### 6.	In this dataset, check if there are any missing data. If there are, clean your data by removing the observations where data are missing
+Let’s start by removing observations of animals for which weight and hindfoot_length are missing, or the sex has not been determined:
+```{r}
+surveys_complete <- surveys_new %>%
+  filter(!is.na(weight),           # remove missing weight
+         !is.na(hindfoot_length),  # remove missing hindfoot_length
+         !is.na(sex))              # remove missing sex
+```
+Because we are interested in plotting how species abundances have changed through time, we are also going to remove observations for rare species (i.e., that have been observed less than 50 times). We will do this in two steps: first, we are going to create a data set that counts how often each species has been observed, and filter out the rare species. Second, we will extract only the observations for these more common species:
+```{r}
+## Extract the most common species_id
+species_counts <- surveys_complete %>%
+    count(species_id) %>% 
+    filter(n >= 50)
+
+## Only keep the most common species
+surveys_complete <- surveys_complete %>%
+  filter(species_id %in% species_counts$species_id)
+```
+Let's check our new data frame:
+```{r}
+dim(surveys_complete)
+```
+### 7.	After cleaning the dataset, save your result for further analysis to the RDS format
+```{r}
+saveRDS(surveys_complete, file = "surveys_complete.rds")
+```
+Also, we will save it to the CSV format
+```{r}
+write_csv(surveys_complete, path = "/Users/19820585/Documents/hse/Introduction to programming in R and Python//surveys_complete.csv")
+```
+
+
+## Project 3
+```{r}
+install.packages("ggfortify")
+```
+```{r}
+library(ggfortify)
+```
+a.	A histogram and a density plot of some numeric (ratio or interval scale 😊) variables.
+These plots show us the distribution of weight within our data set.
+```{r}
+ggplot(data=surveys_complete, aes(x=weight))+geom_histogram(color = "blue", fill = "pink")
+```
+```{r}
+p <- ggplot(surveys_complete, aes(x=weight)) + 
+  geom_density(color="darkblue", fill="lightblue")
+p
+```
+
+b.	A bar and a pie chart for some factor variables (if you do not have factor variables in your dataset, take some numeric variables and convert them to factors)
+```{r}
+genus <- select(surveys_complete, genus)
+```
+```{r}
+barplot(table(genus),
+main="Genus Count of 10 Animals",
+xlab="genus",
+ylab="Count",
+border="red",
+col="blue",
+density=10
+)
+```
+
+```{r}
+df_pie <- select(surveys_complete,species)
+df_pie2 <- table(df_pie)
+head(df_pie2)
+```
+
+```{r}
+slices <- c(1046,2808,1200,1471,73,128)
+lbls <- c("albigula", "baileyi", "eremicus", "flavus", "fulvescens","hispidus")
+pie(slices, labels = lbls, main="Pie Chart of Species")
+```
+
+c.	Box (or violin) plots for some numeric variables
+Here we can see box plots, that reflect animals' weight within their species.
+```{r}
+ggplot(surveys_complete, aes(x = species, y = weight, fill = species)) + geom_boxplot()
+```
